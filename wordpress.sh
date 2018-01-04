@@ -63,7 +63,7 @@ then
    service mysql start
    echo -e "${CAYAN}"
    read -p  "Enter the user name of MYSQL Admin: " adminuser
-   read -sp "Enter the pasword of MYSQL Admin: " adminpass
+   read -sp "Enter the password of MYSQL Admin: " adminpass
    echo -e "${NC}"
    mysql_secure_installation
 
@@ -202,6 +202,7 @@ service php7.0-fpm restart
 rm /etc/nginx/sites-available/default
 rm /etc/nginx/sites-enabled/default
 
+echo -e "${GREEN}Wordpress setup is complete.${NC}"
 echo -e "Visit the site at ${YELLOW} www.$domain ${NC}"
 echo -e "WordPress Database name:${YELLOW} $dbname ${NC}"
 echo -e "WordPress Database user:${YELLOW} $wpuser ${NC}"
