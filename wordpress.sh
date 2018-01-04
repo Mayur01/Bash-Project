@@ -7,11 +7,11 @@ ERROR=script.err
 
 mysql_secure_installation () {
   echo -e "Removing Insecure Details From MySQL"
-  mysql -uroot -p$adminpass -e "DELETE FROM mysql.user WHERE User='';"
-  mysql -uroot -p$adminpass -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-  mysql -uroot -p$adminpass -e "DROP DATABASE IF EXISTS test;"
-  mysql -uroot -p$adminpass -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
-  mysql -uroot -p$adminpass -e "FLUSH PRIVILEGES;"
+  mysql -u$adminuser -p$adminpass -e "DELETE FROM mysql.user WHERE User='';"
+  mysql -u$adminuser -p$adminpass -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+  mysql -u$adminuser -p$adminpass -e "DROP DATABASE IF EXISTS test;"
+  mysql -u$adminuser -p$adminpass -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+  mysql -u$adminuser -p$adminpass -e "FLUSH PRIVILEGES;"
 }
 
 mysql_setup () {
@@ -20,7 +20,7 @@ mysql_setup () {
   ct=0
     while [ $ct -eq 0 ]
     do
-
+      read -p  "Enter User for MYSQL Admin: " adminuser
       read -sp "Enter the password for MYSQL Admin: " adminpass
       echo
       read -sp "Re-enter the password for MYSQL Admin: " re_adminpass
@@ -60,6 +60,12 @@ dpkg -l | grep mysql-server
 if [ "$?" -eq 0 ];
 then
    echo -e "${RED}MySQL-Server is Installed${NC}";
+   service mysql start
+   echo -e "${CAYAN}"
+   read -p  "Enter the user name of MYSQL Admin: " adminuser
+   read -sp "Enter the pasword of MYSQL Admin: " adminpass
+   echo -e "${NC}"
+   mysql_secure_installation
 
 else
   mysql_setup
@@ -99,9 +105,9 @@ dbname="$domain"_db
       if [ $wppass == $re_wppass ];
       then
           echo -e "${GREEN}Password set for wordpress database.${NC}"
-          mysql -uroot -p$adminpass -e "CREATE DATABASE \`$dbname\`"
-          mysql -uroot -p$adminpass -e "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO '$wpuser'@"localhost" IDENTIFIED BY '$wppass';"
-          mysql -uroot -p$adminpass -e "FLUSH PRIVILEGES;"
+          mysql -u$adminuser -p$adminpass -e "CREATE DATABASE \`$dbname\`"
+          mysql -u$adminuser -p$adminpass -e "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO '$wpuser'@"localhost" IDENTIFIED BY '$wppass';"
+          mysql -u$adminuser -p$adminpass -e "FLUSH PRIVILEGES;"
           ct=1
       else
           echo -e "${RED}Password did not match... Try again${NC}"
@@ -156,7 +162,6 @@ server {
 
 }
 eof
-
 service nginx reload
 service nginx restart
 
@@ -168,7 +173,7 @@ sed -i 's/^;\?cgi\.fix\_pathinfo=.*$/cgi.fix_pathinfo=0/' /etc/php/7.0/fpm/php.i
 service php7.0-fpm reload
 service php7.0-fpm restart
 echo
-echo -e "${HBLK}Downloading wordpress.${NC}"
+echo -e "${HBLK}Downloading wordpress...${NC}"
 
 cd /tmp
 curl -O https://wordpress.org/latest.tar.gz
