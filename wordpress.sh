@@ -2,10 +2,8 @@ if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
    exit 1
 fi
-rm script.err script.log
 LOG=script.log
 ERROR=script.err
-
 
 mysql_secure_installation () {
   echo -e "Removing Insecure Details From MySQL"
@@ -158,7 +156,7 @@ server {
 
 }
 eof
-# bash -c sed -i 's#^try_files  \$uri \$uri/ =404;$#try_files \$uri \$uri/ /index.php\$is_args$args;#' /etc/nginx/sites-available/wordpress
+
 service nginx reload
 service nginx restart
 
