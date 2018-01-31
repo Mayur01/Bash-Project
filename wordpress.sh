@@ -63,7 +63,7 @@ then
    service mysql start
    echo -e "${CAYAN}"
    read -p  "Enter the user name of MYSQL Admin: " adminuser
-   read -sp "Enter the password of MYSQL Admin: " adminpass
+   read -sp "Enter the pasword of MYSQL Admin: " adminpass
    echo -e "${NC}"
    mysql_secure_installation
 
@@ -78,9 +78,9 @@ else
   echo -e "------------------------------------"
 fi
 echo -e "${CAYAN}"
-read -p "Enter domain name: " domain
+read -p "Enter domain name: www." domain
 echo
-echo -e "Your Domain name is $domain "
+echo -e "Your Domain name is www.$domain "
 echo -e "${NC}"
 if cat /etc/hosts | grep 127.0.0.1	$domain www.$domain
  then
@@ -101,6 +101,7 @@ dbname="$domain"_db
       echo
       read -sp "Re-enter the password for wordpress database: " re_wppass
       echo -e "${NC}"
+      echo -e "Password is set for wordpress database."
       echo
       if [ $wppass == $re_wppass ];
       then
@@ -141,7 +142,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    root /var/www/html;
+    root /var/www/$domain/html;
     index index.php index.html index.htm index.nginx-debian.html;
 
     server_name $domain;
@@ -165,8 +166,8 @@ eof
 service nginx reload
 service nginx restart
 
-rm /etc/nginx/sites-available/wordpress
-cp /etc/nginx/sites-available/default /etc/nginx/sites-available/wordpress
+rm /etc/nginx/sites-available/$domain
+cp /etc/nginx/sites-available/default /etc/nginx/sites-available/$domain
 
  #Nginx php configuration
 sed -i 's/^;\?cgi\.fix\_pathinfo=.*$/cgi.fix_pathinfo=0/' /etc/php/7.0/fpm/php.ini
@@ -180,21 +181,21 @@ curl -O https://wordpress.org/latest.tar.gz
 tar xzvf latest.tar.gz
 
 cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
-rm -f /etc/nginx/sites-enabled/wordpress
-ln -s /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/wordpress
-
-cp -a /tmp/wordpress/. /var/www/html
-chown -R $USER:www-data /var/www/html
-find /var/www/html -type d -exec chmod g+s {} \;
-chmod g+w /var/www/html/wp-content
-chmod -R g+w /var/www/html/wp-content/themes
-chmod -R g+w /var/www/html/wp-content/plugins
+rm -f /etc/nginx/sites-enabled/$domain
+ln -s /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/
+mkdir -p /var/www/$domain/html
+cp -a /tmp/wordpress/. /var/www/$domain/html
+chown -R $USER:www-data /var/www/$domain/html
+find /var/www/$domain/html -type d -exec chmod g+s {} \;
+chmod g+w /var/www/$domain/html/wp-content
+chmod -R g+w /var/www/$domain/html/wp-content/themes
+chmod -R g+w /var/www/$domain/html/wp-content/plugins
 curl https://api.wordpress.org/secret-key/1.1/salt/ -o salt.txt
-sed -i '49,56d;57r salt.txt' /var/www/html/wp-config.php
+sed -i '49,56d;57r salt.txt' /var/www/$domain/html/wp-config.php
 
-sed -i "s/database_name_here/$dbname/" /var/www/html/wp-config.php
-sed -i "s/username_here/$wpuser/" /var/www/html/wp-config.php
-sed -i "s/password_here/$wppass/" /var/www/html/wp-config.php
+sed -i "s/database_name_here/$dbname/" /var/www/$domain/html/wp-config.php
+sed -i "s/username_here/$wpuser/" /var/www/$domain/html/wp-config.php
+sed -i "s/password_here/$wppass/" /var/www/$domain/html/wp-config.php
 
 service nginx restart
 service php7.0-fpm restart
@@ -202,7 +203,6 @@ service php7.0-fpm restart
 rm /etc/nginx/sites-available/default
 rm /etc/nginx/sites-enabled/default
 
-echo -e "${GREEN}Wordpress setup is complete.${NC}"
 echo -e "Visit the site at ${YELLOW} www.$domain ${NC}"
 echo -e "WordPress Database name:${YELLOW} $dbname ${NC}"
 echo -e "WordPress Database user:${YELLOW} $wpuser ${NC}"
