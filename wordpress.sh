@@ -51,6 +51,7 @@ if [ "$?" -eq 0 ];
 then
    echo
    echo -e "${GREEN}NGINX is already Installed...${NC}";
+   service nginx start
    echo -e "------------------------------------"
 else
    echo -e "------------------------------------"
