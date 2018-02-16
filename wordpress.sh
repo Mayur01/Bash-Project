@@ -21,6 +21,7 @@ mysql_setup () {
     while [ $ct -eq 0 ]
     do
       read -p  "Enter User for MYSQL Admin: " adminuser
+      echo
       read -sp "Enter the password for MYSQL Admin: " adminpass
       echo
       read -sp "Re-enter the password for MYSQL Admin: " re_adminpass
@@ -43,10 +44,14 @@ apt update
 RED='\033[0;31m'       GREEN='\033[0;32m'       NC='\033[0m'          CAYAN='\033[0;36m'
 BLUE='\033[0;34m'      HBLK='\033[1;94m'        YELLOW='\033[1;93m'
 
+echo -e "------------------------------------"
+echo -e "${BLUE}Checking if Nginx is installed${NC}"
 dpkg -l | grep nginx
 if [ "$?" -eq 0 ];
 then
-   echo -e "${RED}Nginx is Installed${NC}";
+   echo
+   echo -e "${GREEN}NGINX is already Installed...${NC}";
+   echo -e "------------------------------------"
 else
    echo -e "------------------------------------"
    echo -e "${BLUE}Installing NGINX...${NC}"
@@ -56,17 +61,18 @@ else
    echo -e "------------------------------------"
 fi
 
+echo -e "${BLUE}Checking if Mysql is installed${NC}"
 dpkg -l | grep mysql-server
 if [ "$?" -eq 0 ];
 then
-   echo -e "${RED}MySQL-Server is Installed${NC}";
+   echo
+   echo -e "${GREEN}MySQL-Server is already Installed...${NC}";
    service mysql start
    echo -e "${CAYAN}"
    read -p  "Enter the user name of MYSQL Admin: " adminuser
    read -sp "Enter the pasword of MYSQL Admin: " adminpass
    echo -e "${NC}"
    mysql_secure_installation
-
 else
   mysql_setup
   echo -e "------------------------------------"
@@ -77,17 +83,14 @@ else
   echo -e "${GREEN}Mysql Setup is complete. ${NC}"
   echo -e "------------------------------------"
 fi
+
 echo -e "${CAYAN}"
 read -p "Enter domain name: www." domain
 echo
 echo -e "Your Domain name is www.$domain "
+echo -e "Making entry for www.$domain"
+echo "127.0.0.1	$domain www.$domain" >> /etc/hosts
 echo -e "${NC}"
-if cat /etc/hosts | grep 127.0.0.1	$domain www.$domain
- then
-   echo -e "127.0.0.1 www.$domain present"
- else
-   echo "127.0.0.1	$domain www.$domain" >> /etc/hosts
-fi
 
 ct=0
 dbname="$domain"_db
@@ -101,7 +104,7 @@ dbname="$domain"_db
       echo
       read -sp "Re-enter the password for wordpress database: " re_wppass
       echo -e "${NC}"
-      echo -e "Password is set for wordpress database."
+      echo
       echo
       if [ $wppass == $re_wppass ];
       then
@@ -119,20 +122,21 @@ echo -e "${NC}"
 
 for i in curl php7.0-fpm php7.0-mysql mysql-client php-curl php-gd php-mbstring php-mcrypt php-xml php-xmlrpc;
 do
-
+    echo -e "------------------------------------"
     echo -e "${GREEN}Checking if $i is installed${NC}";
     dpkg -l | grep $i
     if [ "$?" -eq 0 ];
     then
       echo -e "${GREEN}$i is Installed${NC}"
+      echo -e "-----------------------------------"
     else
-      echo -e "---------------------------------"
+      echo -e "-----------------------------------"
       echo -e "${RED}$i is not Installed.${NC}"
       echo -e "${BLUE}Installing $i ...${NC}"
       export DEBIAN_FRONTEND=noninteractive
       apt install $i -y >>$LOG 2>>$ERROR
       echo -e "${GREEN}$i Package is installed..${NC} "
-      echo -e "---------------------------------"
+      echo -e "----------------------------------"
     fi
 done
   service php7.0-fpm start
@@ -166,6 +170,7 @@ eof
 service nginx reload
 service nginx restart
 
+echo -e "Cleaning old files and Setting up new files..."
 rm /etc/nginx/sites-available/$domain
 cp /etc/nginx/sites-available/default /etc/nginx/sites-available/$domain
 
@@ -181,8 +186,10 @@ curl -O https://wordpress.org/latest.tar.gz
 tar xzvf latest.tar.gz
 
 cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
+
 rm -f /etc/nginx/sites-enabled/$domain
 ln -s /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/
+
 mkdir -p /var/www/$domain/html
 cp -a /tmp/wordpress/. /var/www/$domain/html
 chown -R $USER:www-data /var/www/$domain/html
@@ -204,6 +211,6 @@ rm /etc/nginx/sites-available/default
 rm /etc/nginx/sites-enabled/default
 
 echo -e "Visit the site at ${YELLOW} www.$domain ${NC}"
-echo -e "WordPress Database name:${YELLOW} $dbname ${NC}"
-echo -e "WordPress Database user:${YELLOW} $wpuser ${NC}"
-echo -e "WordPress Database password:${YELLOW} $wppass ${NC}"
+#echo -e "WordPress Database name:${YELLOW} $dbname ${NC}"
+#echo -e "WordPress Database user:${YELLOW} $wpuser ${NC}"
+# echo -e "WordPress Database password:${YELLOW} $wppass ${NC}"
