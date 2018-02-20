@@ -97,13 +97,13 @@ ct=0
 dbname="$domain"_db
   echo
   echo -e "${CAYAN}"
-  read -p "Enter the user for wordpress database: " wpuser
+  read -p "Enter the user for $dbname database: " wpuser
   while [ $ct -eq 0 ]
   do
       echo -e "${CAYAN}"
-      read -sp "Enter the password for wordpress database: " wppass
+      read -sp "Enter the password for $dbname database: " wppass
       echo
-      read -sp "Re-enter the password for wordpress database: " re_wppass
+      read -sp "Re-enter the password for $dbname database: " re_wppass
       echo -e "${NC}"
       echo
       echo
