@@ -46,7 +46,7 @@ BLUE='\033[0;34m'      HBLK='\033[1;94m'        YELLOW='\033[1;93m'
 
 echo -e "------------------------------------"
 echo -e "${BLUE}Checking if Nginx is installed${NC}"
-dpkg -l | grep nginx
+dpkg -l | grep nginx > /dev/null 2>&1
 if [ "$?" -eq 0 ];
 then
    echo
@@ -63,7 +63,7 @@ else
 fi
 
 echo -e "${BLUE}Checking if Mysql is installed${NC}"
-dpkg -l | grep mysql-server
+dpkg -l | grep mysql-server > /dev/null 2>&1
 if [ "$?" -eq 0 ];
 then
    echo
