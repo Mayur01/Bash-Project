@@ -40,6 +40,18 @@ mysql_setup () {
   echo -e "${NC}"
 }
 
+check_package () {
+  dpkg -l | grep $i
+  if [ $? -eq 0 ]
+  then
+    #installed successfully
+    return 0
+  else
+    #not installed.
+    return 1
+  fi
+}
+
 apt update
 RED='\033[0;31m'       GREEN='\033[0;32m'       NC='\033[0m'          CAYAN='\033[0;36m'
 BLUE='\033[0;34m'      HBLK='\033[1;94m'        YELLOW='\033[1;93m'
@@ -141,8 +153,14 @@ do
       echo -e "${BLUE}Installing $i ...${NC}"
       export DEBIAN_FRONTEND=noninteractive
       apt install $i -y >>$LOG 2>>$ERROR
-      echo -e "${GREEN}$i Package is installed..${NC} "
-      echo -e "----------------------------------"
+      check_package
+      if [ "$?" -eq 0 ]
+      then
+        echo -e "${GREEN}$i Package is installed successfully..${NC} "
+      else
+        echo -e "${RED}Error occured during installation.."
+        echo -e "${RED}$i is not installed..";
+      fi
     fi
 done
   service php7.0-fpm start
@@ -184,11 +202,17 @@ sed -i 's/^;\?cgi\.fix\_pathinfo=.*$/cgi.fix_pathinfo=0/' /etc/php/7.0/fpm/php.i
 service php7.0-fpm reload
 service php7.0-fpm restart
 echo
-echo -e "${HBLK}Downloading wordpress...${NC}"
 
-cd /tmp
-curl -O https://wordpress.org/latest.tar.gz
-tar xzvf latest.tar.gz
+[ -f /tmp/wordpress/wp-config.php ]
+if [ $? -eq 0 ]
+then
+  echo -e "${HBLK}Wordpress is already installed...${NC}";
+else
+  echo -e "${HBLK}Downloading wordpress...${NC}";
+  cd /tmp
+  curl -O https://wordpress.org/latest.tar.gz
+  tar xzvf latest.tar.gz
+fi
 
 cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
 
@@ -210,7 +234,3 @@ service nginx restart
 service php7.0-fpm restart
 
 echo -e "Visit the site at ${YELLOW} www.$domain ${NC}"
-#echo -e "WordPress Database name:${YELLOW} $dbname ${NC}"
-#echo -e "WordPress Database user:${YELLOW} $wpuser ${NC}"
-#echo -e "WordPress Database password:${YELLOW} $wppass ${NC}"
-
