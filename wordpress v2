@@ -127,7 +127,7 @@ dbname="$domain"_db
       echo
       if [ $wppass == $re_wppass ];
       then
-          echo -e "${GREEN}Password set for wordpress database.${NC}"
+          echo -e "${GREEN}Password set for $dbname database.${NC}"
           mysql -u$adminuser -p$adminpass -e "CREATE DATABASE \`$dbname\`"
           mysql -u$adminuser -p$adminpass -e "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO '$wpuser'@"localhost" IDENTIFIED BY '$wppass';"
           mysql -u$adminuser -p$adminpass -e "FLUSH PRIVILEGES;"
@@ -207,7 +207,7 @@ echo
 [ -f /tmp/wordpress/wp-config.php ]
 if [ $? -eq 0 ]
 then
-  echo -e "${HBLK}Wordpress is already installed...${NC}";
+  echo -e "${HBLK}Wordpress is already downloaded...${NC}";
 else
   echo -e "${HBLK}Downloading wordpress...${NC}";
   cd /tmp
