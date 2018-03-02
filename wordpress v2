@@ -2,7 +2,6 @@ if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
    exit 1
 fi
-
 LOG=script.log
 ERROR=script.err
 
@@ -15,19 +14,19 @@ mysql_secure_installation () {
   mysql -u$adminuser -p$adminpass -e "FLUSH PRIVILEGES;"
 }
 
+# ------------------------------------------------------------------------------
 mysql_setup () {
   echo -e "${BLUE}Setting up mysql-server...${NC}"
   echo -e "${CAYAN}"
   ct=0
+      read -p  "Enter User for New MYSQL Admin: " adminuser
+      echo
     while [ $ct -eq 0 ]
     do
-      read -p  "Enter User for MYSQL Admin: " adminuser
+      read -sp "Enter the password for New MYSQL Admin: " adminpass
       echo
-      read -sp "Enter the password for MYSQL Admin: " adminpass
+      read -sp "Re-enter the password for New MYSQL Admin: " re_adminpass
       echo
-      read -sp "Re-enter the password for MYSQL Admin: " re_adminpass
-      echo
-
           if [ $adminpass == $re_adminpass ];
           then
               echo -e "${GREEN}Password will be set for MySQL Admin.${NC}"
@@ -41,8 +40,9 @@ mysql_setup () {
   echo -e "${NC}"
 }
 
+# ------------------------------------------------------------------------------
 check_package () {
-  dpkg -l | grep $i
+  dpkg -l | grep $i /dev/null 2>&1
   if [ $? -eq 0 ]
   then
     #installed successfully
@@ -53,51 +53,8 @@ check_package () {
   fi
 }
 
-apt update
-RED='\033[0;31m'       GREEN='\033[0;32m'       NC='\033[0m'          CAYAN='\033[0;36m'
-BLUE='\033[0;34m'      HBLK='\033[1;94m'        YELLOW='\033[1;93m'
-
-echo -e "------------------------------------"
-echo -e "${BLUE}Checking if Nginx is installed${NC}"
-dpkg -l | grep nginx > /dev/null 2>&1
-if [ "$?" -eq 0 ];
-then
-   echo
-   echo -e "${GREEN}NGINX is already Installed...${NC}";
-   service nginx start
-   echo -e "------------------------------------"
-else
-   echo -e "------------------------------------"
-   echo -e "${BLUE}Installing NGINX...${NC}"
-       apt install nginx -y >>$LOG 2>>$ERROR
-       service nginx start
-   echo -e "${GREEN}Nginx is Installed.${NC}";
-   echo -e "------------------------------------"
-fi
-
-echo -e "${BLUE}Checking if Mysql is installed${NC}"
-dpkg -l | grep mysql-server > /dev/null 2>&1
-if [ "$?" -eq 0 ];
-then
-   echo
-   echo -e "${GREEN}MySQL-Server is already Installed...${NC}";
-   service mysql start
-   echo -e "${CAYAN}"
-   read -p  "Enter the user name of MYSQL Admin: " adminuser
-   read -sp "Enter the pasword of MYSQL Admin: " adminpass
-   echo -e "${NC}"
-   mysql_secure_installation
-else
-  mysql_setup
-  echo -e "------------------------------------"
-  echo -e "${BLUE}Installing mysql-server... ${NC}"
-  apt install mysql-server -y >>$LOG 2>>$ERROR
-   service mysql start
-  mysql_secure_installation
-  echo -e "${GREEN}Mysql Setup is complete. ${NC}"
-  echo -e "------------------------------------"
-fi
-
+# ------------------------------------------------------------------------------
+domain_database_setup () {
 echo -e "${CAYAN}"
 read -p "Enter domain name: www." domain
 echo
@@ -124,7 +81,6 @@ dbname="$domain"_db
       read -sp "Re-enter the password for $dbname database: " re_wppass
       echo -e "${NC}"
       echo
-      echo
       if [ $wppass == $re_wppass ];
       then
           echo -e "${GREEN}Password set for $dbname database.${NC}"
@@ -138,35 +94,12 @@ dbname="$domain"_db
       fi
   done
 echo -e "${NC}"
+}
 
-for i in curl php7.0-fpm php7.0-mysql mysql-client php-curl php-gd php-mbstring php-mcrypt php-xml php-xmlrpc;
-do
-    echo -e "------------------------------------"
-    echo -e "${GREEN}Checking if $i is installed${NC}";
-    dpkg -l | grep $i > /dev/null 2>&1
-    if [ "$?" -eq 0 ];
-    then
-      echo -e "${GREEN}$i is Installed${NC}"
-      echo -e "-----------------------------------"
-    else
-      echo -e "-----------------------------------"
-      echo -e "${RED}$i is not Installed.${NC}"
-      echo -e "${BLUE}Installing $i ...${NC}"
-      export DEBIAN_FRONTEND=noninteractive
-      apt install $i -y >>$LOG 2>>$ERROR
-      check_package
-      if [ "$?" -eq 0 ]
-      then
-        echo -e "${GREEN}$i Package is installed successfully..${NC} "
-      else
-        echo -e "${RED}Error occured during installation.."
-        echo -e "${RED}$i is not installed..";
-      fi
-    fi
-done
-  service php7.0-fpm start
-
-echo -e "Cleaning old files and Setting up new files..."
+# ------------------------------------------------------------------------------
+Nginx_server_block () {
+echo
+echo
 cat > /etc/nginx/sites-available/$domain <<eof
 server {
 
@@ -197,12 +130,128 @@ eof
 ln -s /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/
 service nginx reload
 service nginx restart
+}
+#-------------------------------------------------------------------------------
+wordpress_directory_config () {
+  cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
 
-#Nginx php configuration
+  mkdir -p /var/www/$domain/html
+  cp -a /tmp/wordpress/. /var/www/$domain/html
+  chown -R $USER:www-data /var/www/$domain/html
+  find /var/www/$domain/html -type d -exec chmod g+s {} \;
+  chmod g+w /var/www/$domain/html/wp-content
+  chmod -R g+w /var/www/$domain/html/wp-content/themes
+  chmod -R g+w /var/www/$domain/html/wp-content/plugins
+  curl https://api.wordpress.org/secret-key/1.1/salt/ -o salt.txt
+  sed -i '49,56d;57r salt.txt' /var/www/$domain/html/wp-config.php
+
+  sed -i "s/database_name_here/$dbname/" /var/www/$domain/html/wp-config.php
+  sed -i "s/username_here/$wpuser/" /var/www/$domain/html/wp-config.php
+  sed -i "s/password_here/$wppass/" /var/www/$domain/html/wp-config.php
+
+    service nginx restart
+    service php7.0-fpm restart
+}
+
+###########################################################################################################################                                                                                                                         #
+#                                                     SCRIPT STARTS HERE                                                  #                                                                                                                         
+###########################################################################################################################
+
+apt update
+RED='\033[0;31m'       GREEN='\033[0;32m'       NC='\033[0m'          CAYAN='\033[0;36m'
+BLUE='\033[0;34m'      HBLK='\033[1;94m'        YELLOW='\033[1;93m'
+
+echo -e "------------------------------------"
+echo -e "${BLUE}Checking if Nginx is installed${NC}"
+dpkg -l | grep nginx > /dev/null 2>&1
+if [ "$?" -eq 0 ];
+then
+   echo
+   echo -e "${GREEN}NGINX is already Installed...${NC}";
+   service nginx start
+   echo -e "------------------------------------"
+else
+   echo -e "------------------------------------"
+   echo -e "${BLUE}Installing NGINX...${NC}"
+       apt install nginx -y >>$LOG 2>>$ERROR > /dev/null 2>&1
+       service nginx start
+   echo -e "${GREEN}Nginx is Installed.${NC}";
+   echo -e "------------------------------------"
+fi
+
+echo -e "${BLUE}Checking if Mysql-server is installed${NC}"
+dpkg -l | grep mysql-server > /dev/null 2>&1
+if [ "$?" -eq 0 ];
+then
+   echo
+   echo -e "${GREEN}MySQL-Server is already Installed...${NC}";
+   service mysql start
+
+   ct=0
+   while [ $ct -eq 0 ]
+   do
+      echo -e "${CAYAN}"
+      read -p  "Enter the user name of MYSQL Admin: " adminuser
+      read -sp "Enter the pasword of MYSQL Admin: " adminpass
+      mysql -u$adminuser -p$adminpass -e "FLUSH PRIVILEGES;"
+      if [ $? -eq 0 ]
+      then
+        mysql_secure_installation
+        ct=1
+      else
+        echo -e "${RED}Username or Password is INCORRECT.. Try Again ${NC}";
+        ct=0
+      fi
+   done
+   echo -e "${NC}"
+else
+  mysql_setup
+  echo -e "------------------------------------"
+  echo -e "${BLUE}Installing mysql-server... ${NC}"
+  apt install mysql-server -y >>$LOG 2>>$ERROR > /dev/null 2>&1
+   service mysql start
+  mysql_secure_installation
+  echo -e "${GREEN}Mysql Setup is complete. ${NC}"
+  echo -e "------------------------------------"
+fi
+
+domain_database_setup
+
+for i in curl php7.0-fpm php7.0-mysql mysql-client php-curl php-gd php-mbstring php-mcrypt php-xml php-xmlrpc;
+do
+    echo -e "------------------------------------"
+    echo -e "${GREEN}Checking if $i is installed${NC}";
+    check_package
+    if [ "$?" -eq 0 ];
+    then
+      echo -e "${GREEN}$i is Installed${NC}"
+      echo -e "-----------------------------------"
+    else
+      echo -e "-----------------------------------"
+      echo -e "${RED}$i is not Installed.${NC}"
+      echo -e "${BLUE}Installing $i ...${NC}"
+      export DEBIAN_FRONTEND=noninteractive
+      apt install $i -y >>$LOG 2>>$ERROR
+      check_package
+      if [ "$?" -eq 0 ]
+      then
+        echo -e "${GREEN}$i Package is installed successfully..${NC} "
+        echo
+      else
+        echo
+        echo -e "${RED}Error occured during installation.."
+        echo -e "${RED}$i is not installed..";
+        echo -e "${RED}Exiting Script..${NC}";
+        echo
+        exit 0
+      fi
+    fi
+done
+service php7.0-fpm start
 sed -i 's/^;\?cgi\.fix\_pathinfo=.*$/cgi.fix_pathinfo=0/' /etc/php/7.0/fpm/php.ini
 service php7.0-fpm reload
-service php7.0-fpm restart
-echo
+
+Nginx_server_block
 
 [ -f /tmp/wordpress/wp-config.php ]
 if [ $? -eq 0 ]
@@ -214,24 +263,31 @@ else
   curl -O https://wordpress.org/latest.tar.gz
   tar xzvf latest.tar.gz
 fi
+wordpress_directory_config
+echo
+echo -e "${BLUE}--------------------------------------------------------${NC}"
+echo -e "Visit the site at ${YELLOW} www.$domain ${NC}";
+echo -e "${BLUE}--------------------------------------------------------${NC}"
+echo
 
-cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
-
-mkdir -p /var/www/$domain/html
-cp -a /tmp/wordpress/. /var/www/$domain/html
-chown -R $USER:www-data /var/www/$domain/html
-find /var/www/$domain/html -type d -exec chmod g+s {} \;
-chmod g+w /var/www/$domain/html/wp-content
-chmod -R g+w /var/www/$domain/html/wp-content/themes
-chmod -R g+w /var/www/$domain/html/wp-content/plugins
-curl https://api.wordpress.org/secret-key/1.1/salt/ -o salt.txt
-sed -i '49,56d;57r salt.txt' /var/www/$domain/html/wp-config.php
-
-sed -i "s/database_name_here/$dbname/" /var/www/$domain/html/wp-config.php
-sed -i "s/username_here/$wpuser/" /var/www/$domain/html/wp-config.php
-sed -i "s/password_here/$wppass/" /var/www/$domain/html/wp-config.php
-
-service nginx restart
-service php7.0-fpm restart
-
-echo -e "Visit the site at ${YELLOW} www.$domain ${NC}"
+ct=0
+while [ $ct -eq 0 ]
+do
+  echo -e "${GREEN}"
+  read -p "Do you want to create another site ?  (Yes = y | No = n) :" choice
+  echo -e "${NC}"
+  if [ $choice == 'y' ] || [ $choice == 'yes' ]
+  then
+    domain_database_setup
+    Nginx_server_block
+    wordpress_directory_config
+    echo
+    echo -e "${BLUE}--------------------------------------------------------${NC}"
+    echo -e "Visit the site at ${YELLOW} www.$domain ${NC}";
+    echo -e "${BLUE}--------------------------------------------------------${NC}"
+    echo
+    ct=0
+  else
+    ct=1
+  fi
+done
